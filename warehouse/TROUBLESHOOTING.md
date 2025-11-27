@@ -1,6 +1,38 @@
 # Troubleshooting Guide
 
-## 🔍 Debugging Journey: The AWS STS Problem
+Common issues you'll hit and how to fix them. Saved you hours of debugging - you're welcome.
+
+---
+
+## The MinIO Bucket Doesn't Exist Error
+
+### The Error
+
+```
+org.apache.iceberg.exceptions.BadRequestException: Malformed request: 
+The specified bucket does not exist (Service: S3, Status Code: 404)
+```
+
+### Why This Happens
+
+You started all the containers, Polaris is happy, Spark connects fine, you create a namespace, create a table... and then BOOM. 404 bucket not found.
+
+Here's the thing - MinIO starts with zero buckets. Polaris is configured to store data in `s3://warehouse/`, but that bucket doesn't exist yet. Nobody creates it for you.
+
+### The Fix
+
+Open MinIO console at http://localhost:9001, login with `minioadmin`/`minioadmin`, and create a bucket called `warehouse`. That's it.
+
+Or if you prefer command line:
+```bash
+docker exec warehouse-minio mc mb local/warehouse
+```
+
+After that, your table creation and inserts will work.
+
+---
+
+## 🔍 The AWS STS Problem (The Big One)
 
 This document captures the **real debugging process** we went through to get Polaris + Iceberg + MinIO working. If you're hitting similar issues, this shows you exactly how we solved them.
 

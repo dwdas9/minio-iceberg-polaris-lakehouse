@@ -1,7 +1,7 @@
 # Jupyter notebook with PySpark for interactive Iceberg table queries
 services:
   spark-notebook:
-    image: jupyter/pyspark-notebook:spark-3.4.1  # Locked to Spark 3.4.1 (Scala 2.12)
+    image: jupyter/all-spark-notebook:latest  # Multi-arch with PySpark kernel pre-registered
     container_name: spark-notebook
     environment:
       JUPYTER_ENABLE_LAB: "yes"  # Enable JupyterLab interface
