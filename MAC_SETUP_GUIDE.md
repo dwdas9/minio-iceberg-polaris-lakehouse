@@ -13,7 +13,6 @@ Once Docker's installed, bump up the resources a bit. Open Docker Desktop → Se
 First time setup - create the network and volume:
 
 ```bash
-cd warehouse
 docker network create dasnet
 docker volume create warehouse_storage
 ```

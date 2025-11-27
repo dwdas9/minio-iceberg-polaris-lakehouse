@@ -259,8 +259,6 @@ And because it's all open source with standard interfaces, you can swap componen
 First, you need Docker installed. That's it. No other dependencies, no complicated setup.
 
 ```bash
-cd warehouse
-
 # Create the network and storage volume (one-time thing)
 docker network create dasnet
 docker volume create warehouse_storage

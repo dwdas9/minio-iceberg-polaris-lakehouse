@@ -143,7 +143,6 @@ docker network create dasnet
 ### Step 2: Start Core Infrastructure
 
 ```powershell
-cd warehouse
 docker-compose up -d
 ```
 
