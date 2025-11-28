@@ -18,7 +18,16 @@ We're putting together a proper lakehouse stack - Spark for processing and queri
 
 The cool part? This isn't some toy setup. The architecture is the same as what companies run in production. Just smaller.
 
-## Haddop Hive were all good. Why this new stack?
+![](images/20251129010852.png)
+
+**How it flows:**
+1. You write SQL in Jupyter
+2. Spark asks Polaris "where's this table?"
+3. Polaris checks PostgreSQL and returns the location
+4. Spark reads Iceberg metadata from MinIO to find data files
+5. Spark reads/writes Parquet files directly to MinIO
+
+## Hadoop Hive were all good. Why this new stack?
 
 ### Why Not Hadoop?
 
@@ -225,23 +234,6 @@ Could you use a lighter query engine? Maybe Trino for just queries, but then you
 
 We are also excluding, BI Tools, Monitoring, and Security Layers.
 
-### Why This is Actually Sufficient
-
-This stack gives you:
-
-✅ **Persistent storage** with durability (MinIO)
-✅ **Metadata management** and catalog (Polaris/PostgreSQL)  
-✅ **ACID transactions** (Iceberg)  
-✅ **Schema evolution** without rewrites (Iceberg)  
-✅ **Time travel** and auditing (Iceberg)  
-✅ **SQL queries** (Spark SQL)  
-✅ **Batch processing** (Spark)  
-✅ **Streaming** (Spark Structured Streaming)  
-✅ **ETL capabilities** (Spark transformations)  
-✅ **Partition management** (Iceberg)  
-✅ **Concurrent read/write** (Iceberg + Spark)  
-
-That's everything you need for a functional warehouse. Could you add more tools? Sure. Would they make it more capable? Marginally. But you'd be adding operational complexity without adding core functionality.
 
 ### The Beauty of This Setup
 
@@ -256,118 +248,6 @@ There's no overlap, no redundancy. Remove any one piece and something critical b
 
 And because it's all open source with standard interfaces, you can swap components later if needed. Not happy with Polaris? Try Nessie or even Hive Metastore. Want faster queries? Add Trino alongside Spark. The architecture supports evolution without forcing you to rebuild everything.
 
-## Getting It Running
-
-First, you need Docker installed. That's it. No other dependencies, no complicated setup.
-
-```bash
-# Create the network and storage volume (one-time thing)
-docker network create dasnet
-docker volume create warehouse_storage
-
-# Start everything
-docker-compose up -d
-docker-compose -f spark-notebook-compose.yml up -d
-```
-
-Give it a minute to start up, then you've got:
-- Jupyter notebooks at http://localhost:8888
-- MinIO console at http://localhost:9001 (login: minioadmin/minioadmin)
-- Spark UI at http://localhost:4040 when you're running queries
-
-## Actually Using It
-
-Open up Jupyter in your browser. The Spark session is already configured and ready - you just use `spark` directly. No boilerplate, no configuration hassle.
-
-Here's how you create your first table:
-
-```python
-# Make a database (namespace in Iceberg terms)
-spark.sql("CREATE NAMESPACE IF NOT EXISTS mydb")
-
-# Create a table with partitioning
-spark.sql("""
-    CREATE TABLE mydb.users (
-        id INT,
-        name STRING,
-        created_at TIMESTAMP
-    )
-    USING ICEBERG
-    PARTITIONED BY (CAST(created_at AS DATE))
-""")
-
-# Put some data in
-spark.sql("""
-    INSERT INTO mydb.users VALUES
-    (1, 'Alice', CURRENT_TIMESTAMP()),
-    (2, 'Bob', CURRENT_TIMESTAMP())
-""")
-
-# Query it back
-spark.sql("SELECT * FROM mydb.users").show()
-```
-
-That's it. You've got a working Iceberg table with partitioning, ACID transactions, the whole deal.
-
-## What You Can Do
-
-The pattern is simple - use `schema.tablename` for everything. List your tables with `SHOW TABLES IN mydb`. Describe a table with `DESCRIBE TABLE mydb.users`. All standard SQL stuff.
-
-Want to do updates and deletes? Just do them:
-
-```python
-spark.sql("UPDATE mydb.users SET name='Alice2' WHERE id=1")
-spark.sql("DELETE FROM mydb.users WHERE id=2")
-```
-
-This is where Iceberg shines - these operations are fast and atomic. No crazy workarounds like in traditional data lakes.
-
-Time travel is built in. Every change creates a snapshot, so you can query old versions:
-
-```python
-spark.sql("SELECT * FROM mydb.users VERSION AS OF 0").show()
-```
-
-Schema evolution is straightforward too. Add columns, rename stuff, change types - all without rewriting data:
-
-```python
-spark.sql("ALTER TABLE mydb.users ADD COLUMN email STRING")
-```
-
-You can use the DataFrame API if you prefer that style over SQL:
-
-```python
-df = spark.table("mydb.users")
-df.filter(df.id > 1).show()
-df.groupBy("name").count().show()
-```
-
-## Where Everything Lives
-
-Your actual data - the Parquet files - sits in MinIO. Open the console at localhost:9001, navigate to the warehouse bucket, and you can see the folder structure. Each table gets its own path with data and metadata directories.
-
-The catalog metadata (what tables exist, their schemas, snapshots) is in PostgreSQL, managed by Polaris. You don't usually need to touch this directly, but it's there if you need it.
-
-Everything persists across container restarts because of the Docker volume. Your tables and data stick around until you explicitly delete them.
-
-## Shutting Down
-
-When you're done:
-
-```bash
-docker-compose down
-docker-compose -f spark-notebook-compose.yml down
-```
-
-This stops everything but keeps your data. If you want to completely wipe it and start fresh:
-
-```bash
-docker-compose down -v
-docker-compose -f spark-notebook-compose.yml down -v
-docker network rm dasnet
-docker volume rm warehouse_storage
-```
-
 ## What This Gets You
 
 You've got a real lakehouse running on your machine. ACID transactions, schema evolution, time travel, partitioning - all the features you'd get from expensive cloud platforms. It runs locally, no internet needed after the initial image downloads, complete data sovereignty.
@@ -378,4 +258,8 @@ The architecture is legit. Companies run this exact stack in production, just sc
 
 The best part? Every component here can scale to production. MinIO runs at companies storing exabytes. Spark powers data platforms at Netflix, Uber, Airbnb. Iceberg handles billions of files at Apple and LinkedIn. When you're ready to go bigger, you're not rewriting everything - you're just adding more nodes.
 
-Check out the `getting_started.ipynb` notebook in the workspace folder for more examples and patterns. Start there, break things, figure out how to fix them. That's how you actually learn this stuff.
+## Getting Started
+
+See `SETUP_GUIDE_MAC.md` or `SETUP_GUIDE_WIN.md` for step-by-step instructions. If something breaks, check `TROUBLESHOOTING.md`.
+
+Once running, open the `getting_started.ipynb` notebook in the workspace folder to start creating tables and running queries.
